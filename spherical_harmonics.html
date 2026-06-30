@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>球面調和関数 Y_l^m</title>
+<meta name="description" content="水素原子の角度波動関数 — 球面調和関数の複素形式と実形式を3次元で対話的に可視化">
+<style>
+:root {
+  --bg: #070b18; --panel: #0c1022; --border: #1a2548;
+  --text: #c8d5f0; --dim: #5a6a8f; --accent: #5b8dee;
+  --font: system-ui,-apple-system,sans-serif; --mono: 'Courier New',monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--text); font-family: var(--font);
+  font-size: 14px; display: flex; height: 100vh; overflow: hidden;
+}
+#panel {
+  width: 262px; flex-shrink: 0; background: var(--panel);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  padding: 16px 13px; gap: 15px; overflow-y: auto;
+}
+#canvas-area { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+canvas { flex: 1; display: block; width: 100%; cursor: grab; }
+canvas:active { cursor: grabbing; }
+#infobar {
+  background: var(--panel); border-top: 1px solid var(--border);
+  padding: 9px 16px; display: flex; align-items: center;
+  gap: 18px; flex-shrink: 0; min-height: 44px;
+}
+.tag { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); margin-bottom: 6px; }
+.ptitle { font-size: 16px; font-weight: 600; color: #e0eaff; line-height: 1.3; }
+.psub { font-size: 11px; color: var(--dim); margin-top: 2px; font-family: var(--mono); }
+.row { display: flex; gap: 4px; }
+.btn {
+  flex: 1; padding: 6px 3px; background: transparent;
+  border: 1px solid var(--border); color: var(--dim);
+  border-radius: 4px; cursor: pointer;
+  font-family: var(--mono); font-size: 13px;
+  transition: border-color .12s, color .12s, background .12s; text-align: center;
+}
+.btn:hover { border-color: var(--accent); color: var(--text); }
+.btn.on { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+.mwrap { display: flex; flex-wrap: wrap; gap: 4px; }
+.mb {
+  padding: 5px 8px; background: transparent;
+  border: 1px solid var(--border); color: var(--dim);
+  border-radius: 4px; cursor: pointer;
+  font-family: var(--mono); font-size: 12px;
+  transition: border-color .12s, color .12s, background .12s;
+}
+.mb:hover { border-color: var(--accent); color: var(--text); }
+.mb.on { background: #1a2a50; border-color: var(--accent); color: var(--accent); font-weight: 700; }
+.toggle3 { display: flex; border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
+.tbtn {
+  flex: 1; padding: 7px 3px; background: transparent; border: none;
+  color: var(--dim); cursor: pointer; font-size: 11.5px;
+  transition: background .12s, color .12s;
+}
+.tbtn + .tbtn { border-left: 1px solid var(--border); }
+.tbtn.on { background: #1a2a50; color: var(--text); }
+.fbox {
+  background: #090d1c; border: 1px solid var(--border); border-radius: 4px;
+  padding: 9px 10px; font-family: var(--mono); font-size: 11px;
+  color: #7aa8e8; line-height: 1.75; white-space: pre-wrap;
+  min-height: 54px;
+}
+.fbox .hi { color: #a0c8ff; }
+.fbox .eq2 { color: #608080; }
+.rel { font-size: 10.5px; color: var(--dim); line-height: 1.6; padding: 8px 10px;
+  background: #090d1c; border: 1px solid var(--border); border-radius: 4px; }
+.hint { font-size: 11px; color: var(--dim); line-height: 1.7; margin-top: auto; padding-top: 10px; border-top: 1px solid var(--border); }
+.eq { font-family: var(--mono); font-size: 12.5px; color: #8ab4ff; }
+.eqlbl { font-size: 10px; color: var(--dim); margin-bottom: 2px; }
+.oname { font-size: 12px; color: var(--dim); font-family: var(--mono); }
+#leg { margin-left: auto; display: flex; align-items: center; gap: 9px; font-size: 11px; color: var(--dim); }
+.dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; margin-right: 3px; vertical-align: middle; }
+</style>
+</head>
+<body>
+
+<div id="panel">
+  <div>
+    <div class="ptitle">球面調和関数</div>
+    <div class="psub">Y<sub>l</sub><sup>m</sup>(θ,&thinsp;φ)</div>
+  </div>
+
+  <div>
+    <div class="tag">角運動量量子数 l</div>
+    <div class="row">
+      <button class="btn" data-l="0">0</button>
+      <button class="btn" data-l="1">1</button>
+      <button class="btn" data-l="2">2</button>
+      <button class="btn" data-l="3">3</button>
+    </div>
+  </div>
+
+  <div>
+    <div class="tag">磁気量子数 m</div>
+    <div class="mwrap" id="mwrap"></div>
+  </div>
+
+  <div>
+    <div class="tag">表示モード</div>
+    <div class="toggle3">
+      <button class="tbtn" data-v="c">複素形式</button>
+      <button class="tbtn" data-v="r">実形式</button>
+      <button class="tbtn" data-v="d">並列比較</button>
+    </div>
+  </div>
+
+  <div>
+    <div class="tag">表示量</div>
+    <div class="row">
+      <button class="btn" data-q="1">|Y|</button>
+      <button class="btn" data-q="2">|Y|²</button>
+    </div>
+  </div>
+
+  <div>
+    <div class="tag">数式</div>
+    <div class="fbox" id="fbox"></div>
+  </div>
+
+  <div class="rel" id="relbox"></div>
+
+  <div class="hint">
+    ドラッグで回転<br>
+    球面の半径 ∝ 表示量<br>
+    z 軸：磁気量子化軸
+  </div>
+</div>
+
+<div id="canvas-area">
+  <canvas id="cv"></canvas>
+  <div id="infobar">
+    <div>
+      <div class="eqlbl">角度波動関数</div>
+      <div class="eq" id="eqtxt"></div>
+    </div>
+    <div class="oname" id="oname"></div>
+    <div id="leg"></div>
+  </div>
+</div>
+
+<script>
+// ── STATE ────────────────────────────────────────────────────
+const S = { l:1, m:0, view:'c', sq:1, rx:.45, ry:.3, drag:false, lx:0, ly:0, ary:.0025 };
+
+// ── MATH ─────────────────────────────────────────────────────
+function fact(n){ let r=1; for(let i=2;i<=n;i++) r*=i; return r; }
+
+function Plm(l,m,x){
+  m=Math.abs(m);
+  const s=Math.sqrt(Math.max(0,1-x*x));
+  let pmm=1;
+  for(let k=0;k<m;k++) pmm*=-(2*k+1)*s;
+  if(l===m) return pmm;
+  let p1=x*(2*m+1)*pmm;
+  if(l===m+1) return p1;
+  let p2=0;
+  for(let ll=m+2;ll<=l;ll++){ p2=((2*ll-1)*x*p1-(ll+m-1)*pmm)/(ll-m); pmm=p1; p1=p2; }
+  return p2;
+}
+
+function N(l,m){ const am=Math.abs(m); return Math.sqrt((2*l+1)/(4*Math.PI)*fact(l-am)/fact(l+am)); }
+
+function Yc(l,m,t,p){ const n=N(l,m),P=Plm(l,m,Math.cos(t)),r=n*P; return [r*Math.cos(m*p),r*Math.sin(m*p)]; }
+
+function Yr(l,m,t,p){
+  if(m===0) return N(l,0)*Plm(l,0,Math.cos(t));
+  const n=N(l,Math.abs(m))*Math.SQRT2, P=Plm(l,Math.abs(m),Math.cos(t));
+  return m>0 ? n*P*Math.cos(m*p) : n*P*Math.sin(-m*p);
+}
+
+// ── RENDERER ─────────────────────────────────────────────────
+const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+
+function resize(){ const a=document.getElementById('canvas-area'), b=document.getElementById('infobar'); cv.width=a.clientWidth; cv.height=a.clientHeight-b.offsetHeight; }
+
+function rot(x,y,z,rx,ry){
+  const cx=Math.cos(rx),sx=Math.sin(rx); const y1=y*cx-z*sx,z1=y*sx+z*cx;
+  const cy=Math.cos(ry),sy=Math.sin(ry); return [x*cy+z1*sy,y1,-x*sy+z1*cy];
+}
+
+function prj(x,y,z,W,H,ox){ const f=4,sc=Math.min(W,H)*.36; return [ox+W/2+sc*x/(f+z),H/2-sc*y/(f+z)]; }
+
+function phaseHSL(re,im,br){ const h=((Math.atan2(im,re)+Math.PI)/(2*Math.PI)*360+360)%360,l=32+br*22; return `hsl(${h},82%,${l}%)`; }
+function signHSL(v,br){ const l=28+br*25; return v>=0?`hsl(212,72%,${l}%)` : `hsl(348,68%,${l}%)`; }
+
+const LT=(v=>{const m=Math.hypot(...v);return v.map(x=>x/m)})([0.4,0.75,0.55]);
+
+const MC={};
+function getMesh(l,m,real,sq){
+  const k=`${l},${m},${real},${sq}`; if(MC[k]) return MC[k];
+  const NT=50,NP=100, dt=Math.PI/NT, dp=2*Math.PI/NP;
+  let mx=0;
+  for(let i=0;i<=NT;i++){ const t=i*dt; for(let j=0;j<NP;j++){
+    const p=j*dp, v=real?Math.abs(Yr(l,m,t,p)):Math.hypot(...Yc(l,m,t,p));
+    if(v>mx) mx=v;
+  }}
+  if(mx<1e-12) mx=1;
+  const V=[];
+  for(let i=0;i<=NT;i++){
+    const row=[],t=i*dt,ct=Math.cos(t),st=Math.sin(t);
+    for(let j=0;j<=NP;j++){
+      const p=(j%NP)*dp,cp=Math.cos(p),sp=Math.sin(p);
+      let re=0,im=0,rv=0,r;
+      if(real){ rv=Yr(l,m,t,p); r=Math.pow(Math.abs(rv)/mx,sq); }
+      else { [re,im]=Yc(l,m,t,p); r=Math.pow(Math.hypot(re,im)/mx,sq); }
+      row.push({x:r*st*cp,y:r*ct,z:r*st*sp,re,im,rv});
+    }
+    V.push(row);
+  }
+  const faces=[];
+  for(let i=0;i<NT;i++) for(let j=0;j<NP;j++){
+    const v00=V[i][j],v10=V[i+1][j],v01=V[i][j+1],v11=V[i+1][j+1];
+    const ax=v10.x-v00.x,ay=v10.y-v00.y,az=v10.z-v00.z;
+    const bx=v01.x-v00.x,by=v01.y-v00.y,bz=v01.z-v00.z;
+    const nx=ay*bz-az*by,ny=az*bx-ax*bz,nz=ax*by-ay*bx,nl=Math.hypot(nx,ny,nz)||1;
+    const cx4=(v00.x+v10.x+v01.x+v11.x)/4,cy4=(v00.y+v10.y+v01.y+v11.y)/4,cz4=(v00.z+v10.z+v01.z+v11.z)/4;
+    faces.push({v:[v00,v10,v11,v01],nx:nx/nl,ny:ny/nl,nz:nz/nl,cx:cx4,cy:cy4,cz:cz4,
+      ar:(v00.re+v10.re+v01.re+v11.re)/4,ai:(v00.im+v10.im+v01.im+v11.im)/4,
+      arv:(v00.rv+v10.rv+v01.rv+v11.rv)/4});
+  }
+  MC[k]=faces; return faces;
+}
+
+function drawAxes(rx,ry,vW,vH,ox){
+  const L=.58,axes=[{d:[L,0,0],c:'#c05050',lb:'x'},{d:[0,L,0],c:'#50a060',lb:'z'},{d:[0,0,L],c:'#5070c0',lb:'y'}];
+  ctx.lineWidth=1; ctx.setLineDash([3,5]);
+  for(const ax of axes){
+    const [rx1,ry1,rz1]=rot(...ax.d,rx,ry);
+    const [sx0,sy0]=prj(0,0,0,vW,vH,ox), [sx1,sy1]=prj(rx1,ry1,rz1,vW,vH,ox);
+    ctx.strokeStyle=ax.c+'66';
+    ctx.beginPath(); ctx.moveTo(sx0,sy0); ctx.lineTo(sx1,sy1); ctx.stroke();
+    ctx.fillStyle=ax.c+'99'; ctx.font='11px monospace';
+    ctx.fillText(ax.lb,sx1+4,sy1+4);
+  }
+  ctx.setLineDash([]);
+}
+
+function renderView(l,m,real,rx,ry,ox,vW,vH){
+  const g=ctx.createRadialGradient(ox+vW/2,vH/2,0,ox+vW/2,vH/2,Math.max(vW,vH)*.7);
+  g.addColorStop(0,'#0d1225'); g.addColorStop(1,'#070b18');
+  ctx.fillStyle=g; ctx.fillRect(ox,0,vW,vH);
+  drawAxes(rx,ry,vW,vH,ox);
+
+  const faces=getMesh(l,m,real,S.sq);
+  const tf=faces.map(f=>{
+    const [rx2,ry2,rz2]=rot(f.cx,f.cy,f.cz,rx,ry);
+    const [nx2,ny2,nz2]=rot(f.nx,f.ny,f.nz,rx,ry);
+    const br=.25+.75*Math.abs(nx2*LT[0]+ny2*LT[1]+nz2*LT[2]);
+    const rv=f.v.map(v=>prj(...rot(v.x,v.y,v.z,rx,ry),vW,vH,ox));
+    return{...f,depth:rz2,br,rv};
+  });
+  tf.sort((a,b)=>a.depth-b.depth);
+  for(const f of tf){
+    ctx.fillStyle=real?signHSL(f.arv,f.br):phaseHSL(f.ar,f.ai,f.br);
+    ctx.beginPath();
+    ctx.moveTo(f.rv[0][0],f.rv[0][1]);
+    for(let k=1;k<4;k++) ctx.lineTo(f.rv[k][0],f.rv[k][1]);
+    ctx.closePath(); ctx.fill();
+  }
+}
+
+function render(){
+  requestAnimationFrame(render);
+  if(!S.drag) S.ry+=S.ary;
+  const W=cv.width, H=cv.height; if(!W||!H) return;
+  ctx.clearRect(0,0,W,H);
+  const {l,m,rx,ry}=S;
+
+  if(S.view==='d'){
+    const hw=Math.floor(W/2);
+    ctx.save(); ctx.beginPath(); ctx.rect(0,0,hw,H); ctx.clip();
+    renderView(l,m,false,rx,ry,0,hw,H); ctx.restore();
+
+    ctx.save(); ctx.beginPath(); ctx.rect(hw,0,W-hw,H); ctx.clip();
+    renderView(l,m,true,rx,ry,hw,W-hw,H); ctx.restore();
+
+    ctx.strokeStyle='#1c2d52'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(hw,0); ctx.lineTo(hw,H); ctx.stroke();
+
+    ctx.fillStyle='#3a4c72'; ctx.font='11px system-ui'; ctx.textAlign='center';
+    ctx.fillText('複素形式',hw/2,20); ctx.fillText('実形式',hw+(W-hw)/2,20);
+    ctx.textAlign='left';
+  } else {
+    renderView(l,m,S.view==='r',rx,ry,0,W,H);
+  }
+}
+
+// ── FORMULA DATABASE ──────────────────────────────────────────
+const FTEXT = {
+  'c,0,0':  'Y₀⁰ = 1/(2√π)',
+  'c,1,0':  'Y₁⁰ = √(3/4π)·cosθ',
+  'c,1,1':  'Y₁¹ = −√(3/8π)·sinθ·e^{iφ}',
+  'c,1,-1': 'Y₁⁻¹ = √(3/8π)·sinθ·e^{−iφ}',
+  'c,2,0':  'Y₂⁰ = √(5/16π)·(3cos²θ−1)',
+  'c,2,1':  'Y₂¹ = −√(15/8π)·sinθcosθ·e^{iφ}',
+  'c,2,-1': 'Y₂⁻¹ = √(15/8π)·sinθcosθ·e^{−iφ}',
+  'c,2,2':  'Y₂² = √(15/32π)·sin²θ·e^{2iφ}',
+  'c,2,-2': 'Y₂⁻² = √(15/32π)·sin²θ·e^{−2iφ}',
+  'c,3,0':  'Y₃⁰ = √(7/16π)·\n     (5cos³θ−3cosθ)/2',
+  'c,3,1':  'Y₃¹ = −√(21/64π)·\n     sinθ(5cos²θ−1)·e^{iφ}',
+  'c,3,-1': 'Y₃⁻¹ = √(21/64π)·\n     sinθ(5cos²θ−1)·e^{−iφ}',
+  'c,3,2':  'Y₃² = √(105/32π)·sin²θcosθ·e^{2iφ}',
+  'c,3,-2': 'Y₃⁻² = √(105/32π)·sin²θcosθ·e^{−2iφ}',
+  'c,3,3':  'Y₃³ = −√(35/64π)·sin³θ·e^{3iφ}',
+  'c,3,-3': 'Y₃⁻³ = √(35/64π)·sin³θ·e^{−3iφ}',
+  'r,0,0':  's = 1/(2√π)  [球対称]',
+  'r,1,0':  'pz = √(3/4π)·cosθ',
+  'r,1,1':  'px = √(3/4π)·sinθ·cosφ',
+  'r,1,-1': 'py = √(3/4π)·sinθ·sinφ',
+  'r,2,0':  'd_{z²} = √(5/16π)·(3cos²θ−1)',
+  'r,2,1':  'd_{xz} = √(15/4π)·sinθcosθ·cosφ',
+  'r,2,-1': 'd_{yz} = √(15/4π)·sinθcosθ·sinφ',
+  'r,2,2':  'd_{x²−y²} = √(15/16π)·sin²θ·cos2φ',
+  'r,2,-2': 'd_{xy} = √(15/16π)·sin²θ·sin2φ',
+  'r,3,0':  'f_{z³} = √(7/16π)·\n     (5cos³θ−3cosθ)/2',
+  'r,3,1':  'f_{xz²} = √(21/32π)·\n     sinθ(5cos²θ−1)·cosφ',
+  'r,3,-1': 'f_{yz²} = √(21/32π)·\n     sinθ(5cos²θ−1)·sinφ',
+  'r,3,2':  'f_{xyz} = √(105/16π)·\n     sin²θcosθ·cos2φ',
+  'r,3,-2': 'f_{z(x²−y²)} = √(105/16π)·\n     sin²θcosθ·sin2φ',
+  'r,3,3':  'f_{x³} = √(35/32π)·sin³θ·cos3φ',
+  'r,3,-3': 'f_{y³} = √(35/32π)·sin³θ·sin3φ',
+};
+
+const REL = {
+  '0':    '規格化条件: ∫|Y₀⁰|²dΩ = 1\n|Y| = 一定 → 方向依存なし',
+  '1,0':  'm=0: Lz の固有値 0\n|Y| は φ に依存しない (軸対称)',
+  '1,±1': 'm=±1: Lz の固有値 ±ℏ\n位相 arg(Y) = ±φ\n実形式: px, py の線形結合',
+  '2,0':  'm=0: Lz の固有値 0\n|Y| は φ に依存しない',
+  '2,±1': 'm=±1: Lz の固有値 ±ℏ\n位相 arg(Y) = ±φ',
+  '2,±2': 'm=±2: Lz の固有値 ±2ℏ\n位相 arg(Y) = ±2φ',
+  '3,0':  'm=0: Lz の固有値 0\n|Y| は φ に依存しない',
+  '3,±1': 'm=±1: Lz の固有値 ±ℏ',
+  '3,±2': 'm=±2: Lz の固有値 ±2ℏ',
+  '3,±3': 'm=±3: Lz の固有値 ±3ℏ',
+};
+
+const ONAMES = {
+  '0,0,r':'s', '0,0,c':'s', '1,0,r':'pz', '1,1,r':'px', '1,-1,r':'py',
+  '2,0,r':'d_{z²}', '2,1,r':'d_{xz}', '2,-1,r':'d_{yz}',
+  '2,2,r':'d_{x²−y²}', '2,-2,r':'d_{xy}',
+  '3,0,r':'f_{z³}', '3,1,r':'f_{xz²}', '3,-1,r':'f_{yz²}',
+  '3,2,r':'f_{xyz}', '3,-2,r':'f_{z(x²−y²)}',
+  '3,3,r':'f_{x³}', '3,-3,r':'f_{y³}',
+};
+
+// ── UI ────────────────────────────────────────────────────────
+function getRelKey(l,m){
+  if(l===0) return '0';
+  const am=Math.abs(m);
+  if(am===0) return `${l},0`;
+  return `${l},±${am}`;
+}
+
+function buildFbox(){
+  const {l,m,view}=S;
+  let html='';
+  if(view==='d'){
+    const fc=FTEXT[`c,${l},${m}`]||'', fr=FTEXT[`r,${l},${m}`]||'';
+    html=`<span class="hi">${fc}</span>\n<span class="eq2">─────────────────</span>\n<span style="color:#8ab070">${fr}</span>`;
+  } else {
+    const k=(view==='r'?'r':'c')+`,${l},${m}`;
+    html=`<span class="hi">${FTEXT[k]||''}</span>`;
+  }
+  document.getElementById('fbox').innerHTML=html;
+  const rk=getRelKey(l,m);
+  document.getElementById('relbox').textContent=REL[rk]||'';
+}
+
+function buildLegend(){
+  const {view}=S;
+  const real=(view==='r');
+  const leg=document.getElementById('leg');
+  if(!real&&view!=='d'){
+    leg.innerHTML=`<span>位相 0</span>
+    <canvas id="pb" width="80" height="12" style="border-radius:2px;vertical-align:middle"></canvas>
+    <span>2π</span>`;
+    setTimeout(()=>{
+      const bc=document.getElementById('pb'); if(!bc) return;
+      const bx=bc.getContext('2d');
+      const gr=bx.createLinearGradient(0,0,80,0);
+      for(let i=0;i<=12;i++) gr.addColorStop(i/12,`hsl(${i/12*360},80%,50%)`);
+      bx.fillStyle=gr; bx.fillRect(0,0,80,12);
+    },10);
+  } else if(real){
+    leg.innerHTML=`<span><span class="dot" style="background:#4070b0"></span>正</span>
+    <span><span class="dot" style="background:#b04050"></span>負</span>`;
+  } else {
+    leg.innerHTML=`<span>複素：位相で色分け</span>&ensp;
+    <span><span class="dot" style="background:#4070b0"></span>正&ensp;<span class="dot" style="background:#b04050"></span>負</span>`;
+  }
+}
+
+function getEqLine(){
+  const {l,m,view}=S;
+  const sup={'-3':'⁻³','-2':'⁻²','-1':'⁻¹','0':'⁰','1':'¹','2':'²','3':'³'};
+  const sub='₀₁₂₃';
+  if(view==='d') return `Y${sub[l]}${sup[String(m)]}  (複素 / 実形式 並列)`;
+  if(view==='r'){
+    const on=ONAMES[`${l},${m},r`];
+    return on ? `${on}(θ,φ)` : `Y${sub[l]}${sup[String(m)]}_real(θ,φ)`;
+  }
+  return `Y${sub[l]}${sup[String(m)]}(θ,φ)`;
+}
+
+function updateUI(){
+  document.getElementById('eqtxt').textContent=getEqLine();
+  const on=ONAMES[`${S.l},${S.m},r`];
+  document.getElementById('oname').textContent=(on&&S.view==='r')?`(${on})`:'';
+  buildFbox(); buildLegend();
+}
+
+function buildM(){
+  const w=document.getElementById('mwrap'); w.innerHTML='';
+  for(let m=-S.l;m<=S.l;m++){
+    const b=document.createElement('button');
+    b.className='mb'+(m===S.m?' on':'');
+    b.textContent=m>=0?`+${m}`:String(m);
+    b.addEventListener('click',()=>{ S.m=m; buildM(); updateUI(); });
+    w.appendChild(b);
+  }
+}
+
+function buildL(){
+  document.querySelectorAll('[data-l]').forEach(b=>b.classList.toggle('on',parseInt(b.dataset.l)===S.l));
+}
+
+document.querySelectorAll('[data-l]').forEach(b=>b.addEventListener('click',()=>{
+  S.l=parseInt(b.dataset.l); if(Math.abs(S.m)>S.l) S.m=0;
+  buildL(); buildM(); updateUI();
+}));
+
+document.querySelectorAll('[data-v]').forEach(b=>b.addEventListener('click',()=>{
+  S.view=b.dataset.v;
+  document.querySelectorAll('[data-v]').forEach(x=>x.classList.toggle('on',x.dataset.v===S.view));
+  updateUI();
+}));
+
+document.querySelectorAll('[data-q]').forEach(b=>b.addEventListener('click',()=>{
+  S.sq=parseInt(b.dataset.q);
+  document.querySelectorAll('[data-q]').forEach(x=>x.classList.toggle('on',x.dataset.q===String(S.sq)));
+  Object.keys(MC).forEach(k=>delete MC[k]);
+  updateUI();
+}));
+
+cv.addEventListener('mousedown',e=>{ S.drag=true; S.lx=e.clientX; S.ly=e.clientY; S.ary=0; });
+window.addEventListener('mousemove',e=>{
+  if(!S.drag) return;
+  S.ry+=(e.clientX-S.lx)*.011; S.rx+=(e.clientY-S.ly)*.011;
+  S.rx=Math.max(-1.5,Math.min(1.5,S.rx)); S.lx=e.clientX; S.ly=e.clientY;
+});
+window.addEventListener('mouseup',()=>{ S.drag=false; S.ary=.0025; });
+cv.addEventListener('touchstart',e=>{ e.preventDefault(); S.drag=true; S.lx=e.touches[0].clientX; S.ly=e.touches[0].clientY; S.ary=0; });
+cv.addEventListener('touchmove',e=>{ e.preventDefault(); if(!S.drag) return;
+  S.ry+=(e.touches[0].clientX-S.lx)*.011; S.rx+=(e.touches[0].clientY-S.ly)*.011;
+  S.rx=Math.max(-1.5,Math.min(1.5,S.rx)); S.lx=e.touches[0].clientX; S.ly=e.touches[0].clientY;
+});
+cv.addEventListener('touchend',()=>{ S.drag=false; S.ary=.0025; });
+window.addEventListener('resize',resize);
+
+// ── INIT ──────────────────────────────────────────────────────
+resize();
+buildL();
+buildM();
+document.querySelector('[data-l="1"]').classList.add('on');
+document.querySelector('[data-v="c"]').classList.add('on');
+document.querySelector('[data-q="1"]').classList.add('on');
+updateUI();
+render();
+</script>
+</body>
+</html>

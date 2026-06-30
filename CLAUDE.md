@@ -12,8 +12,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## ファイル構成
 
 ```
-index.html   — アプリ全体（CSS・HTML・JavaScript をすべて内包）
+index.html        — Webアプリ全体（CSS・HTML・JavaScript をすべて内包）
+plot_sph_harm.py  — 球面調和関数の3Dプロット（Python / matplotlib）
+sph_harm.png      — plot_sph_harm.py の出力画像
+.gitignore        — macOS の .DS_Store を除外
 ```
+
+### plot_sph_harm.py の実行
+
+```bash
+pip3 install matplotlib scipy  # 初回のみ
+python3 plot_sph_harm.py       # sph_harm.png を生成して画面表示
+```
+
+- 上段: 実球面調和関数（色 = 正負の符号、赤=正・青=負）
+- 下段: 複素球面調和関数（色 = 位相 arg(Y)、HSVカラーマップ）
+- `scipy.special.sph_harm` を使用。引数順は `sph_harm(m, l, φ, θ)`（index.html 内の独自実装とは別物）。
 
 ## コードの構成（index.html 内部）
 
